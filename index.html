@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meeting Action Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column — add bar, summary strip, then a responsive grid of owner cards */
+:root {
+  --bg: #F3F3F1;
+  --surface: #FFFFFF;
+  --ink: #26282B;
+  --muted: #6E7177;
+  --line: #E1E1DD;
+  --soft: #EBEBE7;
+  --accent: #E8730C;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #FCEBDB;
+  --danger: #C8372D;
+  --danger-soft: #FBE6E4;
+  --done: #9A9DA2;
+
+  --f-display: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #18191B; --surface: #222326; --ink: #ECECEA; --muted: #9C9EA3;
+    --line: #34363A; --soft: #2C2D31; --accent: #F2883A; --accent-ink: #1A1206;
+    --accent-soft: #3A2817; --danger: #F0685D; --danger-soft: #3B1F1D; --done: #6E7177;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #18191B; --surface: #222326; --ink: #ECECEA; --muted: #9C9EA3;
+  --line: #34363A; --soft: #2C2D31; --accent: #F2883A; --accent-ink: #1A1206;
+  --accent-soft: #3A2817; --danger: #F0685D; --danger-soft: #3B1F1D; --done: #6E7177;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 18px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 28px; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(30px, 5vw, 40px); line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h1 .dot { color: var(--accent); }
+.today { font-family: var(--f-data); font-size: 15px; color: var(--muted); }
+
+/* Add form */
+.add {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 20px; display: grid; gap: 14px;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end;
+}
+.field { display: grid; gap: 6px; min-width: 0; }
+label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+input[type="text"], input[type="date"] {
+  font: inherit; font-size: 18px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; width: 100%; min-height: 50px;
+}
+input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn-primary {
+  font-family: var(--f-display); font-weight: 600; font-size: 18px;
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px;
+  padding: 0 24px; min-height: 50px; cursor: pointer; white-space: nowrap;
+}
+.btn-primary:hover { filter: brightness(1.06); }
+.form-error { grid-column: 1 / -1; margin: 0; color: var(--danger); font-size: 16px; }
+
+/* Summary */
+.summary { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.stat {
+  display: flex; align-items: baseline; gap: 10px; padding: 12px 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+}
+.stat b { font-family: var(--f-display); font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1; }
+.stat span { color: var(--muted); font-size: 16px; }
+.stat.overdue b { color: var(--danger); }
+.stat.overdue.has { background: var(--danger-soft); border-color: transparent; }
+.progress { flex: 1 1 180px; min-width: 140px; height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+.toggle { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 16px; color: var(--muted); cursor: pointer; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+.sample {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
+  font-size: 16px; color: var(--muted); padding: 12px 18px; border: 1px dashed var(--line); border-radius: var(--r);
+}
+.link-btn { font: inherit; font-weight: 700; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 4px 0; }
+
+/* Owner cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 20px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.card-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px 14px; }
+.avatar {
+  width: 42px; height: 42px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: var(--soft); font-family: var(--f-display); font-weight: 700; font-size: 16px; color: var(--muted);
+}
+.owner { min-width: 0; }
+.owner h2 { font-family: var(--f-display); font-size: 22px; font-weight: 600; margin: 0; line-height: 1.2; overflow-wrap: anywhere; }
+.owner p { margin: 0; font-size: 15px; color: var(--muted); }
+.owner p .od { color: var(--danger); font-weight: 700; }
+.card ul { list-style: none; margin: 0; padding: 0 8px 8px; }
+.item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: start;
+  padding: 14px 12px; border-top: 1px solid var(--line); border-radius: 10px;
+}
+.item:first-child { border-top-color: transparent; }
+.item.is-overdue { background: var(--danger-soft); border-top-color: transparent; }
+.item.is-overdue + .item { border-top-color: transparent; }
+
+.check { position: relative; width: 28px; height: 28px; margin-top: 1px; }
+.check input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; width: 100%; height: 100%; }
+.check span {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
+  border: 2px solid var(--muted); background: var(--surface); pointer-events: none; transition: background .15s, border-color .15s;
+}
+.check span svg { width: 16px; height: 16px; opacity: 0; }
+.check input:checked + span { background: var(--accent); border-color: var(--accent); }
+.check input:checked + span svg { opacity: 1; }
+.check input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+.is-overdue .check span { border-color: var(--danger); }
+
+.text { margin: 0; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
+.due { font-family: var(--f-data); font-size: 14px; color: var(--muted); }
+.chip { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 9px; border-radius: 99px; }
+.chip.over { background: var(--danger); color: var(--surface); }
+.chip.soon { background: var(--accent-soft); color: var(--accent); }
+.is-overdue .text { color: var(--danger); font-weight: 700; }
+.is-overdue .due { color: var(--danger); }
+.item.done .text { color: var(--done); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+
+.del {
+  width: 36px; height: 36px; border-radius: 8px; border: 0; background: none; color: var(--muted);
+  cursor: pointer; display: grid; place-items: center; opacity: .55;
+}
+.del:hover, .del:focus-visible { opacity: 1; background: var(--soft); }
+.del svg { width: 18px; height: 18px; }
+
+.empty { text-align: center; padding: 48px 20px; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); }
+.empty strong { display: block; font-family: var(--f-display); font-size: 22px; color: var(--ink); margin-bottom: 4px; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); padding: 12px 14px 12px 20px; border-radius: 12px;
+  display: flex; gap: 16px; align-items: center; font-size: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  max-width: calc(100% - 32px);
+}
+.toast button { font: inherit; font-weight: 700; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 4px 6px; }
+
+@media (max-width: 760px) {
+  .add { grid-template-columns: 1fr 1fr; }
+  .add .f-text { grid-column: 1 / -1; }
+  .add .btn-primary { grid-column: 1 / -1; }
+  .toggle { margin-left: 0; }
+}
+@media (max-width: 420px) {
+  .add { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.head-right { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.conn { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--muted);
+  padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); }
+.conn i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.conn.live i { background: #3E9B5F; box-shadow: 0 0 0 3px color-mix(in srgb, #3E9B5F 25%, transparent); }
+.conn.off { color: var(--danger); } .conn.off i { background: var(--danger); }
+.error-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
+  background: var(--danger-soft); color: var(--danger); padding: 12px 18px; border-radius: var(--r); font-size: 16px; }
+.btn-primary:disabled { opacity: .6; cursor: wait; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Meeting actions<span class="dot">.</span></h1>
+    <div class="head-right"><div class="today" id="today"></div><span class="conn wait" id="conn" role="status"><i aria-hidden="true"></i><span>Connecting</span></span></div>
+  </header>
+
+  <form class="add" id="addForm" novalidate>
+    <div class="field f-text">
+      <label for="actionText">Action agreed</label>
+      <input type="text" id="actionText" placeholder="e.g. Send revised budget to finance" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="actionOwner">Owner</label>
+      <input type="text" id="actionOwner" list="ownerList" placeholder="Name" autocomplete="off">
+      <datalist id="ownerList"></datalist>
+    </div>
+    <div class="field">
+      <label for="actionDue">Due date</label>
+      <input type="date" id="actionDue">
+    </div>
+    <button class="btn-primary" type="submit" id="addBtn">Add action</button>
+    <p class="form-error" id="formError" hidden></p>
+  </form>
+
+  <div class="error-bar" id="errorBar" hidden role="alert"><span id="errorMsg"></span><button class="link-btn" id="retryBtn" type="button" style="color:inherit">Try again</button></div>
+  <div class="summary" id="summary"></div>
+  <div class="sample" id="sampleNote" hidden>
+    <span>These are example actions so you can see how it works.</span>
+    <button class="link-btn" id="clearSample" type="button">Clear examples and start fresh</button>
+  </div>
+
+  <main class="grid" id="grid"><div class="empty" style="grid-column:1/-1"><strong>Loading actions</strong>Fetching the latest list from Supabase.</div></main>
+</div>
+
+<div class="toast" id="toast" hidden role="status">
+  <span id="toastMsg"></span>
+  <button type="button" id="undoBtn">Undo</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  // Supabase connection (publishable key is safe to ship in a browser page; access is governed by RLS)
+  var SUPABASE_URL = "https://szukysnapqpbyiyaunna.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_bOJ6RCUmWlTwgSQXYGAKRA_I4cOXPtV";
+  var TABLE = "meeting_actions";
+  var PREF = "meeting-actions-showdone";
+
+  var CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-ink)"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
+  var BIN = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>';
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function parse(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function addDays(n) { var d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + n); return iso(d); }
+  function todayISO() { return iso(new Date()); }
+  function daysBetween(a, b) { return Math.round((parse(b) - parse(a)) / 86400000); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fromRow(r) { return { id: r.id, text: r.text, owner: r.owner, due: r.due, done: r.done, sample: r.is_sample, created_at: r.created_at }; }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { actions: [], showDone: true, loaded: false };
+  try { var sd = localStorage.getItem(PREF); if (sd !== null) state.showDone = sd === "1"; } catch (e) {}
+  var today = todayISO();
+
+  $("today").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  $("actionDue").value = addDays(7);
+
+  // ---- status + errors ----
+  function setStatus(kind, label) {
+    var el = $("conn");
+    el.className = "conn " + kind;
+    el.lastChild.textContent = label;
+  }
+  function showError(msg) { $("errorMsg").textContent = msg; $("errorBar").hidden = false; }
+  function clearError() { $("errorBar").hidden = true; }
+  $("retryBtn").addEventListener("click", function () { clearError(); load(); });
+
+  if (!window.supabase || !window.supabase.createClient) {
+    setStatus("off", "Offline");
+    showError("Couldn't load the Supabase library. Check your internet connection, then reload the page.");
+    $("grid").innerHTML = "";
+    return;
+  }
+  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ---- data ----
+  function upsertLocal(a) {
+    var i = state.actions.findIndex(function (x) { return x.id === a.id; });
+    if (i >= 0) state.actions[i] = a; else state.actions.push(a);
+  }
+  function removeLocal(id) {
+    state.actions = state.actions.filter(function (x) { return x.id !== id; });
+  }
+
+  async function load() {
+    setStatus("wait", "Connecting");
+    var res = await db.from(TABLE).select("*").order("created_at", { ascending: true });
+    if (res.error) {
+      setStatus("off", "Offline");
+      showError("Couldn't load actions from Supabase (" + res.error.message + "). Check your connection and try again.");
+      return;
+    }
+    state.actions = res.data.map(fromRow);
+    state.loaded = true;
+    clearError();
+    render();
+    subscribe();
+  }
+
+  var channel = null;
+  function subscribe() {
+    if (channel) return;
+    channel = db.channel("meeting-actions-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: TABLE }, function (p) {
+        if (p.eventType === "DELETE") removeLocal(p.old.id);
+        else upsertLocal(fromRow(p.new));
+        render();
+      })
+      .subscribe(function (s) {
+        if (s === "SUBSCRIBED") setStatus("live", "Live");
+        else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") setStatus("off", "Not syncing");
+      });
+  }
+
+  // ---- render ----
+  function isOverdue(a) { return !a.done && a.due < today; }
+  function dueLabel(a) {
+    var d = daysBetween(today, a.due);
+    var pretty = parse(a.due).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    if (a.done) return { text: "Due " + pretty, chip: "" };
+    if (d < 0) return { text: "Due " + pretty, chip: '<span class="chip over">' + (-d) + (d === -1 ? " day" : " days") + " overdue</span>" };
+    if (d === 0) return { text: "Due " + pretty, chip: '<span class="chip soon">Due today</span>' };
+    if (d === 1) return { text: "Due " + pretty, chip: '<span class="chip soon">Tomorrow</span>' };
+    return { text: "Due " + pretty + " · in " + d + " days", chip: "" };
+  }
+  function initials(name) { return name.trim().split(/\s+/).slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase(); }
+
+  function render() {
+    today = todayISO();
+    var acts = state.actions;
+    var open = acts.filter(function (a) { return !a.done; }).length;
+    var done = acts.length - open;
+    var over = acts.filter(isOverdue).length;
+    var pct = acts.length ? Math.round(done / acts.length * 100) : 0;
+
+    $("summary").innerHTML =
+      '<div class="stat"><b>' + open + '</b><span>open</span></div>' +
+      '<div class="stat"><b>' + done + '</b><span>done</span></div>' +
+      '<div class="stat overdue' + (over ? " has" : "") + '"><b>' + over + '</b><span>overdue</span></div>' +
+      '<div class="progress" title="' + pct + '% complete" aria-label="' + pct + '% complete"><i style="width:' + pct + '%"></i></div>' +
+      '<label class="toggle" for="showDone"><input type="checkbox" id="showDone"' + (state.showDone ? " checked" : "") + '> Show done</label>';
+
+    $("sampleNote").hidden = !acts.some(function (a) { return a.sample; });
+
+    var owners = {};
+    acts.forEach(function (a) { var k = a.owner.trim().toLowerCase(); if (!owners[k]) owners[k] = { name: a.owner.trim(), items: [] }; owners[k].items.push(a); });
+    $("ownerList").innerHTML = Object.keys(owners).map(function (k) { return '<option value="' + esc(owners[k].name) + '">'; }).join("");
+
+    var groups = Object.keys(owners).map(function (k) {
+      var g = owners[k];
+      g.open = g.items.filter(function (a) { return !a.done; }).length;
+      g.over = g.items.filter(isOverdue).length;
+      g.items.sort(function (a, b) {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        return a.due < b.due ? -1 : a.due > b.due ? 1 : 0;
+      });
+      return g;
+    }).filter(function (g) { return state.showDone || g.open > 0; });
+    groups.sort(function (a, b) { return (b.over - a.over) || (b.open - a.open) || a.name.localeCompare(b.name); });
+
+    if (!acts.length) {
+      $("grid").innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>No actions yet</strong>Add the first action agreed in your meeting above.</div>';
+      return;
+    }
+    if (!groups.length) {
+      $("grid").innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>Everything is done</strong>Turn on “Show done” to see completed actions.</div>';
+      return;
+    }
+
+    $("grid").innerHTML = groups.map(function (g) {
+      var items = g.items.filter(function (a) { return state.showDone || !a.done; });
+      var sub = g.open + " open";
+      if (g.over) sub += ' · <span class="od">' + g.over + " overdue</span>";
+      if (g.items.length - g.open) sub += " · " + (g.items.length - g.open) + " done";
+      return '<section class="card"><div class="card-head"><div class="avatar" aria-hidden="true">' + esc(initials(g.name)) + '</div>' +
+        '<div class="owner"><h2>' + esc(g.name) + '</h2><p>' + sub + '</p></div></div><ul>' +
+        items.map(function (a) {
+          var dl = dueLabel(a);
+          var cls = "item" + (a.done ? " done" : "") + (isOverdue(a) ? " is-overdue" : "");
+          return '<li class="' + cls + '">' +
+            '<label class="check"><input type="checkbox" data-id="' + a.id + '" id="chk-' + a.id + '"' + (a.done ? " checked" : "") + ' aria-label="Mark done: ' + esc(a.text) + '"><span>' + CHECK + '</span></label>' +
+            '<div><p class="text">' + esc(a.text) + '</p><div class="meta"><span class="due">' + dl.text + '</span>' + dl.chip + '</div></div>' +
+            '<button class="del" type="button" data-del="' + a.id + '" aria-label="Delete action: ' + esc(a.text) + '">' + BIN + '</button></li>';
+        }).join("") + '</ul></section>';
+    }).join("");
+  }
+
+  // ---- add ----
+  $("addForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var text = $("actionText").value.trim();
+    var owner = $("actionOwner").value.trim();
+    var due = $("actionDue").value;
+    var missing = [];
+    if (!text) missing.push("the action");
+    if (!owner) missing.push("an owner");
+    if (!due) missing.push("a due date");
+    var err = $("formError");
+    if (missing.length) {
+      err.textContent = "Add " + missing.join(", ").replace(/, ([^,]*)$/, " and $1") + " before saving.";
+      err.hidden = false;
+      (!text ? $("actionText") : !owner ? $("actionOwner") : $("actionDue")).focus();
+      return;
+    }
+    err.hidden = true;
+    var match = state.actions.find(function (a) { return a.owner.trim().toLowerCase() === owner.toLowerCase(); });
+    var btn = $("addBtn"); btn.disabled = true; btn.textContent = "Saving…";
+    var res = await db.from(TABLE).insert({ text: text, owner: match ? match.owner.trim() : owner, due: due }).select().single();
+    btn.disabled = false; btn.textContent = "Add action";
+    if (res.error) {
+      err.textContent = "Couldn't save this action (" + res.error.message + "). Check your connection and try again.";
+      err.hidden = false;
+      return;
+    }
+    upsertLocal(fromRow(res.data)); render();
+    $("actionText").value = "";
+    $("actionText").focus();
+  });
+
+  // ---- tick done / show done ----
+  document.addEventListener("change", async function (e) {
+    var t = e.target;
+    if (t.id === "showDone") {
+      state.showDone = t.checked;
+      try { localStorage.setItem(PREF, t.checked ? "1" : "0"); } catch (er) {}
+      render(); return;
+    }
+    if (t.dataset && t.dataset.id) {
+      var a = state.actions.find(function (x) { return x.id === t.dataset.id; });
+      if (!a) return;
+      var prev = a.done;
+      a.done = t.checked; render();
+      var el = $("chk-" + a.id); if (el) el.focus();
+      var res = await db.from(TABLE).update({ done: a.done }).eq("id", a.id);
+      if (res.error) {
+        a.done = prev; render();
+        showError("Couldn't update that action (" + res.error.message + "). It has been put back.");
+      }
+    }
+  });
+
+  // ---- delete with undo ----
+  var lastDeleted = null, toastTimer = null;
+  function showToast(msg) {
+    $("toastMsg").textContent = msg;
+    $("toast").hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $("toast").hidden = true; lastDeleted = null; }, 6000);
+  }
+  document.addEventListener("click", async function (e) {
+    var b = e.target.closest("[data-del]");
+    if (!b) return;
+    var a = state.actions.find(function (x) { return x.id === b.dataset.del; });
+    if (!a) return;
+    removeLocal(a.id); render();
+    var res = await db.from(TABLE).delete().eq("id", a.id);
+    if (res.error) {
+      upsertLocal(a); render();
+      showError("Couldn't delete that action (" + res.error.message + ").");
+      return;
+    }
+    lastDeleted = a;
+    showToast("Action deleted");
+  });
+  $("undoBtn").addEventListener("click", async function () {
+    if (!lastDeleted) return;
+    var a = lastDeleted; lastDeleted = null;
+    $("toast").hidden = true;
+    var res = await db.from(TABLE).insert({ id: a.id, text: a.text, owner: a.owner, due: a.due, done: a.done, is_sample: a.sample, created_at: a.created_at }).select().single();
+    if (res.error) { showError("Couldn't restore that action (" + res.error.message + ")."); return; }
+    upsertLocal(fromRow(res.data)); render();
+  });
+
+  // ---- clear examples ----
+  $("clearSample").addEventListener("click", async function () {
+    var res = await db.from(TABLE).delete().eq("is_sample", true);
+    if (res.error) { showError("Couldn't remove the examples (" + res.error.message + ")."); return; }
+    state.actions = state.actions.filter(function (a) { return !a.sample; });
+    render();
+    $("actionText").focus();
+  });
+
+  // Refresh overdue state past midnight; reload when returning to the tab
+  setInterval(function () { if (todayISO() !== today) render(); }, 60000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && state.loaded) load(); });
+
+  load();
+})();
+</script>
+</body>
+</html>
