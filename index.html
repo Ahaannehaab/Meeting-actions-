@@ -45,6 +45,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   background: var(--bg); color: var(--ink);
@@ -184,14 +185,119 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .error-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
   background: var(--danger-soft); color: var(--danger); padding: 12px 18px; border-radius: var(--r); font-size: 16px; }
 .btn-primary:disabled { opacity: .6; cursor: wait; }
+
+.view { display: grid; gap: 28px; }
+.userbox { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.whoami-wrap { font-size: 16px; color: var(--muted); }
+.whoami-wrap b { color: var(--ink); font-family: var(--f-display); font-weight: 600; }
+.btn-ghost { font: inherit; font-size: 16px; font-weight: 700; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 16px; min-height: 44px; cursor: pointer; }
+.btn-ghost:hover { border-color: var(--muted); }
+.btn-ghost:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.login { max-width: 440px; width: 100%; margin: 24px auto 0; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 28px; display: grid; gap: 18px; }
+.login h2, .panel h2 { font-family: var(--f-display); font-size: 24px; font-weight: 600; margin: 0; }
+.login p.lead { margin: -8px 0 0; color: var(--muted); font-size: 16px; }
+.login form, .panel form { display: grid; gap: 14px; }
+input[type="password"] { font: inherit; font-size: 18px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; width: 100%; min-height: 50px; }
+input[type="password"]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.form-msg { margin: 0; font-size: 16px; }
+.form-msg.err { color: var(--danger); }
+.form-msg.ok { color: var(--ink); background: var(--accent-soft); padding: 10px 14px; border-radius: 10px; }
+.boot { text-align: center; color: var(--muted); padding: 48px 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; display: grid; gap: 22px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.panel-cols { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.panel-cols > div { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.panel h3 { font-family: var(--f-display); font-size: 18px; font-weight: 600; margin: 0; }
+.team { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.team li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.team li:first-child { border-top: 0; }
+.avatar.sm { width: 32px; height: 32px; font-size: 13px; }
+.tm-name { font-weight: 700; }
+.tm-user { font-family: var(--f-data); font-size: 14px; color: var(--muted); margin-right: auto; }
+.muted { color: var(--muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>Meeting actions<span class="dot">.</span></h1>
-    <div class="head-right"><div class="today" id="today"></div><span class="conn wait" id="conn" role="status"><i aria-hidden="true"></i><span>Connecting</span></span></div>
+    <div class="head-right">
+      <div class="today" id="today"></div>
+      <span class="conn wait" id="conn" role="status"><i aria-hidden="true"></i><span>Connecting</span></span>
+      <div class="userbox" id="userbox" hidden>
+        <span class="whoami-wrap">Signed in as <b id="whoami"></b></span>
+        <button class="btn-ghost" id="accountBtn" type="button" aria-expanded="false" aria-controls="accountPanel">Account</button>
+        <button class="btn-ghost" id="signOutBtn" type="button">Sign out</button>
+      </div>
+    </div>
   </header>
+
+  <p class="boot" id="bootView">Checking your session…</p>
+
+  <section class="login" id="loginView" hidden aria-labelledby="loginTitle">
+    <h2 id="loginTitle">Sign in</h2>
+    <p class="lead">Use the username and password your admin gave you.</p>
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="loginUsername">Username</label>
+        <input type="text" id="loginUsername" autocomplete="username" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password">
+      </div>
+      <p class="form-msg err" id="loginError" role="alert" hidden></p>
+      <button class="btn-primary" type="submit" id="loginBtn">Sign in</button>
+    </form>
+  </section>
+
+  <div class="view" id="appView" hidden>
+    <section class="panel" id="accountPanel" hidden aria-labelledby="accountTitle">
+      <div class="panel-head">
+        <h2 id="accountTitle">Account</h2>
+        <button class="btn-ghost" id="closeAccount" type="button">Close</button>
+      </div>
+      <div class="panel-cols">
+        <div>
+          <h3>Change your password</h3>
+          <form id="passwordForm" novalidate>
+            <div class="field">
+              <label for="newPassword">New password</label>
+              <input type="password" id="newPassword" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label for="confirmPassword">Confirm new password</label>
+              <input type="password" id="confirmPassword" autocomplete="new-password">
+            </div>
+            <p class="form-msg" id="passwordMsg" role="status" hidden></p>
+            <button class="btn-primary" type="submit">Change password</button>
+          </form>
+        </div>
+        <div id="teamSection" hidden>
+          <h3>Team</h3>
+          <ul class="team" id="teamList"></ul>
+          <form id="memberForm" novalidate>
+            <div class="field">
+              <label for="memberUsername">Username</label>
+              <input type="text" id="memberUsername" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. lena">
+            </div>
+            <div class="field">
+              <label for="memberName">Display name</label>
+              <input type="text" id="memberName" autocomplete="off" placeholder="e.g. Lena">
+            </div>
+            <div class="field">
+              <label for="memberPassword">Initial password</label>
+              <input type="password" id="memberPassword" autocomplete="new-password">
+            </div>
+            <p class="form-msg" id="memberMsg" role="status" hidden></p>
+            <button class="btn-primary" type="submit" id="memberBtn">Add user</button>
+          </form>
+        </div>
+      </div>
+    </section>
 
   <form class="add" id="addForm" novalidate>
     <div class="field f-text">
@@ -219,6 +325,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   </div>
 
   <main class="grid" id="grid"><div class="empty" style="grid-column:1/-1"><strong>Loading actions</strong>Fetching the latest list from Supabase.</div></main>
+  </div>
 </div>
 
 <div class="toast" id="toast" hidden role="status">
@@ -234,6 +341,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   var SUPABASE_KEY = "sb_publishable_bOJ6RCUmWlTwgSQXYGAKRA_I4cOXPtV";
   var TABLE = "meeting_actions";
   var PREF = "meeting-actions-showdone";
+  var EMAIL_DOMAIN = "@example.com"; // usernames are stored in Supabase Auth as <username>@example.com
 
   var CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-ink)"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
   var BIN = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>';
@@ -248,7 +356,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function fromRow(r) { return { id: r.id, text: r.text, owner: r.owner, due: r.due, done: r.done, sample: r.is_sample, created_at: r.created_at }; }
 
   var $ = function (id) { return document.getElementById(id); };
-  var state = { actions: [], showDone: true, loaded: false };
+  var state = { actions: [], showDone: true, loaded: false, userId: null, profile: null };
   try { var sd = localStorage.getItem(PREF); if (sd !== null) state.showDone = sd === "1"; } catch (e) {}
   var today = todayISO();
 
@@ -263,24 +371,96 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   }
   function showError(msg) { $("errorMsg").textContent = msg; $("errorBar").hidden = false; }
   function clearError() { $("errorBar").hidden = true; }
-  $("retryBtn").addEventListener("click", function () { clearError(); load(); });
+  function setMsg(el, text, kind) {
+    el.textContent = text || "";
+    el.className = "form-msg" + (kind ? " " + kind : "");
+    el.hidden = !text;
+  }
 
   if (!window.supabase || !window.supabase.createClient) {
     setStatus("off", "Offline");
-    showError("Couldn't load the Supabase library. Check your internet connection, then reload the page.");
-    $("grid").innerHTML = "";
+    $("loginView").hidden = false;
+    setMsg($("loginError"), "Couldn't load the Supabase library. Check your internet connection, then reload the page.", "err");
     return;
   }
-  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  });
+
+  // ---- views ----
+  function showView(which) {
+    $("bootView").hidden = true;
+    $("loginView").hidden = which !== "login";
+    $("appView").hidden = which !== "app";
+    $("userbox").hidden = which !== "app";
+    if (which === "login") {
+      setStatus("wait", "Signed out");
+      $("loginPassword").value = "";
+      setTimeout(function () { ($("loginUsername").value ? $("loginPassword") : $("loginUsername")).focus(); }, 0);
+    }
+  }
+
+  // ---- sign in / out ----
+  $("loginForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var u = $("loginUsername").value.trim().toLowerCase();
+    var p = $("loginPassword").value;
+    if (!u || !p) { setMsg($("loginError"), "Enter your username and password.", "err"); return; }
+    var btn = $("loginBtn"); btn.disabled = true; btn.textContent = "Signing in…";
+    setMsg($("loginError"), "");
+    var res = await db.auth.signInWithPassword({ email: u + EMAIL_DOMAIN, password: p });
+    btn.disabled = false; btn.textContent = "Sign in";
+    if (res.error) {
+      var bad = /invalid login credentials/i.test(res.error.message);
+      setMsg($("loginError"), bad ? "That username or password is incorrect." : "Couldn't sign in (" + res.error.message + ").", "err");
+      $("loginPassword").value = ""; $("loginPassword").focus();
+    }
+    // success is handled by onAuthStateChange
+  });
+
+  $("signOutBtn").addEventListener("click", async function () {
+    await db.auth.signOut();
+  });
+
+  db.auth.onAuthStateChange(function (event, session) {
+    if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "PASSWORD_RECOVERY") return;
+    // Defer: calling Supabase from inside this callback can deadlock
+    setTimeout(function () { handleSession(session); }, 0);
+  });
+
+  async function handleSession(session) {
+    if (!session) {
+      state.userId = null; state.profile = null; state.actions = []; state.loaded = false;
+      closeChannel();
+      $("accountPanel").hidden = true;
+      showView("login");
+      return;
+    }
+    if (state.userId === session.user.id) return;
+    state.userId = session.user.id;
+    setStatus("wait", "Connecting");
+    var pr = await db.from("profiles").select("username,display_name,is_admin").eq("id", session.user.id).single();
+    if (pr.error) {
+      state.userId = null;
+      await db.auth.signOut();
+      showView("login");
+      setMsg($("loginError"), "Your account has no profile yet. Ask an admin to add you again.", "err");
+      return;
+    }
+    state.profile = pr.data;
+    $("whoami").textContent = state.profile.display_name;
+    $("teamSection").hidden = !state.profile.is_admin;
+    if (!$("actionOwner").value) $("actionOwner").value = state.profile.display_name;
+    showView("app");
+    await load();
+  }
 
   // ---- data ----
   function upsertLocal(a) {
     var i = state.actions.findIndex(function (x) { return x.id === a.id; });
     if (i >= 0) state.actions[i] = a; else state.actions.push(a);
   }
-  function removeLocal(id) {
-    state.actions = state.actions.filter(function (x) { return x.id !== id; });
-  }
+  function removeLocal(id) { state.actions = state.actions.filter(function (x) { return x.id !== id; }); }
 
   async function load() {
     setStatus("wait", "Connecting");
@@ -296,8 +476,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     render();
     subscribe();
   }
+  $("retryBtn").addEventListener("click", function () { clearError(); load(); });
 
   var channel = null;
+  function closeChannel() { if (channel) { db.removeChannel(channel); channel = null; } }
   function subscribe() {
     if (channel) return;
     channel = db.channel("meeting-actions-live")
@@ -308,7 +490,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       })
       .subscribe(function (s) {
         if (s === "SUBSCRIBED") setStatus("live", "Live");
-        else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") setStatus("off", "Not syncing");
+        else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("off", "Not syncing");
       });
   }
 
@@ -385,7 +567,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     }).join("");
   }
 
-  // ---- add ----
+  // ---- add action ----
   $("addForm").addEventListener("submit", async function (e) {
     e.preventDefault();
     var text = $("actionText").value.trim();
@@ -471,7 +653,6 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     upsertLocal(fromRow(res.data)); render();
   });
 
-  // ---- clear examples ----
   $("clearSample").addEventListener("click", async function () {
     var res = await db.from(TABLE).delete().eq("is_sample", true);
     if (res.error) { showError("Couldn't remove the examples (" + res.error.message + ")."); return; }
@@ -480,11 +661,71 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     $("actionText").focus();
   });
 
-  // Refresh overdue state past midnight; reload when returning to the tab
-  setInterval(function () { if (todayISO() !== today) render(); }, 60000);
-  document.addEventListener("visibilitychange", function () { if (!document.hidden && state.loaded) load(); });
+  // ---- account panel: change password, and (admins) team management ----
+  $("accountBtn").addEventListener("click", function () {
+    var p = $("accountPanel");
+    p.hidden = !p.hidden;
+    $("accountBtn").setAttribute("aria-expanded", String(!p.hidden));
+    if (!p.hidden) { if (state.profile && state.profile.is_admin) loadTeam(); $("newPassword").focus(); }
+  });
+  $("closeAccount").addEventListener("click", function () {
+    $("accountPanel").hidden = true;
+    $("accountBtn").setAttribute("aria-expanded", "false");
+    $("accountBtn").focus();
+  });
 
-  load();
+  $("passwordForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var np = $("newPassword").value, cp = $("confirmPassword").value, msg = $("passwordMsg");
+    if (np.length < 8) { setMsg(msg, "Use at least 8 characters.", "err"); return; }
+    if (np === "password") { setMsg(msg, "Choose something other than the default password.", "err"); return; }
+    if (np !== cp) { setMsg(msg, "The two passwords don't match.", "err"); return; }
+    var res = await db.auth.updateUser({ password: np });
+    if (res.error) { setMsg(msg, "Couldn't change the password (" + res.error.message + ").", "err"); return; }
+    $("newPassword").value = ""; $("confirmPassword").value = "";
+    setMsg(msg, "Password changed. Use it next time you sign in.", "ok");
+  });
+
+  async function loadTeam() {
+    var res = await db.from("profiles").select("username,display_name,is_admin").order("username");
+    var list = $("teamList");
+    if (res.error) { list.innerHTML = '<li class="muted">Couldn\'t load the team (' + esc(res.error.message) + ').</li>'; return; }
+    list.innerHTML = res.data.map(function (m) {
+      return '<li><span class="avatar sm" aria-hidden="true">' + esc(initials(m.display_name)) + '</span>' +
+        '<span class="tm-name">' + esc(m.display_name) + '</span>' +
+        '<span class="tm-user">' + esc(m.username) + '</span>' +
+        (m.is_admin ? '<span class="chip soon">Admin</span>' : '') + '</li>';
+    }).join("");
+  }
+
+  $("memberForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var u = $("memberUsername").value.trim().toLowerCase();
+    var n = $("memberName").value.trim();
+    var p = $("memberPassword").value;
+    var msg = $("memberMsg");
+    if (!u || !p) { setMsg(msg, "Enter a username and an initial password.", "err"); return; }
+    if (!/^[a-z0-9._-]{2,32}$/.test(u)) { setMsg(msg, "Usernames are 2–32 characters: lowercase letters, numbers, dot, dash or underscore.", "err"); return; }
+    if (p.length < 8) { setMsg(msg, "The initial password needs at least 8 characters.", "err"); return; }
+    var btn = $("memberBtn"); btn.disabled = true; btn.textContent = "Adding…";
+    var res = await db.rpc("create_team_member", { p_username: u, p_password: p, p_display_name: n || null });
+    btn.disabled = false; btn.textContent = "Add user";
+    if (res.error) {
+      var taken = /already taken/i.test(res.error.message);
+      setMsg(msg, taken ? "That username is already taken." : "Couldn't add the user (" + res.error.message + ").", "err");
+      return;
+    }
+    $("memberUsername").value = ""; $("memberName").value = ""; $("memberPassword").value = "";
+    setMsg(msg, "Added " + u + ". Share the initial password with them so they can sign in.", "ok");
+    loadTeam();
+  });
+
+  // Refresh overdue state past midnight; reload when returning to the tab
+  setInterval(function () { if (state.userId && todayISO() !== today) render(); }, 60000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && state.loaded && state.userId) load(); });
+
+  // ---- start ----
+  db.auth.getSession().then(function (r) { handleSession(r.data.session); });
 })();
 </script>
 </body>

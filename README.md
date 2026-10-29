@@ -2,7 +2,7 @@
 
 A single-page tracker for actions agreed in meetings. Add an action with an owner and due date, tick it off under each person, and see open, done and overdue counts at a glance. Overdue actions are highlighted in red.
 
-Data is stored live in Supabase (table `public.meeting_actions`), and changes sync to everyone with the page open.
+Team members sign in with a username and password (Supabase Auth). Actions are stored live in Supabase (table `public.meeting_actions`) and changes sync to everyone signed in.
 
 ## Files
 
@@ -21,6 +21,14 @@ There is no build step and no dependencies to install.
 
 Every push to `main` redeploys automatically.
 
+## Users and sign-in
+
+Passwords are stored by Supabase's built-in authentication in `auth.users` (hashed, never in this repo). Usernames are saved as `<username>@example.com` in Supabase Auth, and the page adds that suffix when someone signs in.
+
+Starting accounts, all with the initial password `password`: `priya` (admin), `dan`, `marcus`. Everyone should change their password after first sign-in: **Account → Change your password**.
+
+Admins can add users from **Account → Team**. That calls the `create_team_member` database function, which only admins can run.
+
 ## Supabase
 
 The Supabase project URL and publishable key are set near the top of the script in `index.html`:
@@ -30,9 +38,13 @@ var SUPABASE_URL = "https://szukysnapqpbyiyaunna.supabase.co";
 var SUPABASE_KEY = "sb_publishable_…";
 ```
 
-The publishable key is meant to be public. What it can do is controlled by row-level security on the table. The current policies allow anyone with the page to read, add, update and delete actions. Tighten them if the page should be limited to signed-in team members.
+The publishable key is meant to be public. What it can do is controlled by row-level security: only signed-in users can read, add, update or delete actions, and the signed-out role has no access to the table.
 
-### Table schema
+### Tables
+
+`public.profiles` links each Supabase Auth user to a username, display name and admin flag. A trigger creates the profile whenever a user is added.
+
+`public.meeting_actions` holds the actions:
 
 ```sql
 create table public.meeting_actions (
@@ -42,7 +54,8 @@ create table public.meeting_actions (
   due date not null,
   done boolean not null default false,
   is_sample boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  created_by uuid default auth.uid() references auth.users (id) on delete set null
 );
 ```
 
